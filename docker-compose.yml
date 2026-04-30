@@ -1,0 +1,50 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/dev/Dockerfile
+    image: ${IMAGE_DEV}
+    container_name: ${CONTAINER_NAME}
+    ports:
+      - "3000:3000"
+    working_dir: /app/src
+    init: true
+    restart: unless-stopped
+    command: >-
+      sh -lc "cd /app/src
+      && /app/node_modules/.bin/next dev --webpack --hostname 0.0.0.0 --port 3000"
+    environment:
+      NODE_ENV: development
+      NODE_OPTIONS: --max-old-space-size=1024
+      NEXT_TELEMETRY_DISABLED: 1
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      PROJECT_DOMAIN: ${PROJECT_DOMAIN}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api-proxy}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://condopy-api:7501}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - |
+          fetch('http://127.0.0.1:3000/dashboard', { redirect: 'manual' })
+            .then((response) => process.exit(response.status < 500 ? 0 : 1))
+            .catch(() => process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    mem_limit: 1536m
+    memswap_limit: 2g
+    volumes:
+      - ./src:/app/src
+      - condo_backdmin_next:/app/src/.next
+
+volumes:
+  condo_backdmin_next:
+
+networks:
+  default:
+    name: ${DOCKER_NETWORK}
+    external: true

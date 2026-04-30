@@ -1,0 +1,10 @@
+services:
+  backend:
+    environment:
+      EXCLUDE_PORTS: 443
+      VIRTUAL_HOST: ${PROJECT_DOMAIN}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${DOCKER_NETWORK}"
+      - "traefik.http.routers.condo-net.rule=Host(`${PROJECT_DOMAIN}`)"
+      - "traefik.http.services.condo-net.loadbalancer.server.port=3020"
