@@ -14,8 +14,18 @@ interface Resident {
   full_name: string;
   role: string;
   status: string;
+  email?: string;
   unit_code?: string;
 }
+
+const ROLE_LABELS: Record<string, string> = {
+  resident: "Residente",
+  condominium_admin: "Admin",
+  security: "Seguridad",
+  manager: "Gestor",
+  owner: "Propietario",
+  tenant: "Inquilino",
+};
 
 export default function ResidentsPage() {
   const { selectedCondominium, isLoading: authLoading } = useAuth();
@@ -37,13 +47,34 @@ export default function ResidentsPage() {
 
       const { data, error: apiError } = await api.get<{
         success: boolean;
-        data: { users: Resident[] };
+        data: {
+          users: Array<{
+            user: { id: number; email: string; status: string } | null;
+            profile: { first_name?: string; last_name?: string } | null;
+            roles: Array<{ role: string; status: string }>;
+          }>;
+        };
       }>(`/condominiums/${selectedCondominium!.id}/users`);
 
       if (apiError) {
         setError(apiError.message || "Error al cargar residentes");
       } else if (data?.data?.users) {
-        setResidents(data.data.users);
+        // Map the nested API response to flat Resident items
+        const mapped: Resident[] = data.data.users.map((entry) => {
+          const primaryRole = entry.roles[0] || { role: "sin rol", status: "inactive" };
+          const profile = entry.profile || {};
+          const userName = entry.user || { id: 0, email: "?", status: "inactive" };
+          return {
+            user_id: userName.id,
+            full_name:
+              [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
+              userName.email ||
+              `Usuario #${userName.id}`,
+            role: ROLE_LABELS[primaryRole.role] || primaryRole.role,
+            status: primaryRole.status,
+          };
+        });
+        setResidents(mapped);
       }
       setLoading(false);
     }
