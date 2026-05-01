@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile: { first_name: string; last_name: string; avatar_url?: string } | null;
         roles_by_condominium: Record<
           number,
-          Array<{ id: number; name: string; condominium_id: number; condominium_theme_id?: string | null }>
+          Array<{ id: number; name: string; condominium_id: number; condominium_name?: string | null; condominium_theme_id?: string | null }>
         >;
         ownerships: Array<{ id: number; condominium_id: number; unit_id: number }>;
       };
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const ctx = data.data;
 
-    // Extract condominiums from roles
+    // Extract condominiums from roles (enriched with name + theme_id from backend)
     const condominiums: Condominium[] = [];
 
     if (ctx.roles_by_condominium) {
@@ -117,13 +117,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ctx.roles_by_condominium
       )) {
         const condoId = Number(condoIdStr);
-        // Extract theme_id from the first role's enrichment (all roles for same condo share it)
-        const theme_id = roles[0]?.condominium_theme_id ?? undefined;
+        // Use enrichment from backend: condominium_name and condominium_theme_id
+        const enrichment = roles[0];
+        const theme_id = enrichment?.condominium_theme_id ?? undefined;
+        const name = enrichment?.condominium_name ?? `Condominio #${condoId}`;
         condominiums.push({
           id: condoId,
           uuid: "",
           code: "",
-          name: `Condominio #${condoId}`,
+          name,
           theme_id,
         });
       }
@@ -146,12 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Fetch real condominium details
-    const condoDetails = await Promise.allSettled(
-      condominiums.map(async (c) => {
-        const { data: condoData } = await api.get<{
-          success: boolean;
-          data: {
+    // Bulk-fetch condominium details in ONE call (eliminates N+1)
+    const resolvedCondos: Condominium[] = [...condominiums];
+    if (condominiums.length > 0) {
+      const condoIds = condominiums.map((c) => c.id).join(",");
+      const { data: bulkData } = await api.get<{
+        success: boolean;
+        data: {
+          items: Array<{
             id: number;
             uuid: string;
             code: string;
@@ -160,28 +164,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             country?: string;
             status: number;
             theme_id?: string | null;
-          };
-        }>(`/condominiums/${c.id}`);
-        if (condoData?.data) {
-          return {
-            id: condoData.data.id,
-            uuid: condoData.data.uuid,
-            code: condoData.data.code,
-            name: condoData.data.name,
-            city: condoData.data.city,
-            country: condoData.data.country,
-            status: condoData.data.status,
-            // Prefer theme_id from dedicated endpoint; fallback to role enrichment
-            theme_id: condoData.data.theme_id ?? c.theme_id,
-          };
-        }
-        return c;
-      })
-    );
+          }>;
+        };
+      }>(`/condominiums?ids=${condoIds}&limit=200`);
 
-    const resolvedCondos = condoDetails.map((r) =>
-      r.status === "fulfilled" ? r.value : (r.reason ?? null)
-    ).filter(Boolean) as Condominium[];
+      if (bulkData?.data?.items) {
+        const bulkMap = new Map(
+          bulkData.data.items.map((c) => [c.id, c])
+        );
+        for (const condo of resolvedCondos) {
+          const details = bulkMap.get(condo.id);
+          if (details) {
+            condo.uuid = details.uuid;
+            condo.code = details.code;
+            condo.name = details.name;
+            condo.city = details.city;
+            condo.country = details.country;
+            condo.status = details.status;
+            // Prefer theme_id from dedicated endpoint; fallback to role enrichment
+            condo.theme_id = details.theme_id ?? condo.theme_id;
+          }
+        }
+      }
+    }
 
     setUser({
       id: ctx.user.id,
