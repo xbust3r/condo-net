@@ -8,7 +8,7 @@
  * - JSON parsing & error normalization
  */
 
-const API_URL = process.env.NEXT_PUBLIC_CONDO_PY_API_URL || "http://localhost:8000";
+const API_URL = "/api";
 
 export interface ApiError {
   status: number;

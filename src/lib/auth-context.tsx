@@ -207,18 +207,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (email: string, password: string): Promise<string | null> => {
       const { data, error } = await api.post<{
-        access_token: string;
-        refresh_token: string;
-        user?: { id: number; email: string };
+        success: boolean;
+        data: {
+          access_token: string;
+          refresh_token: string;
+          user?: { id: number; email: string };
+        };
       }>("/auth/login", { email, password });
 
       if (error) {
         return error.message;
       }
 
-      if (data?.access_token && data?.refresh_token) {
-        localStorage.setItem("access_token", data.access_token);
-        localStorage.setItem("refresh_token", data.refresh_token);
+      const tokens = data?.data;
+      if (tokens?.access_token && tokens?.refresh_token) {
+        localStorage.setItem("access_token", tokens.access_token);
+        localStorage.setItem("refresh_token", tokens.refresh_token);
 
         // Fetch full context
         await fetchContext();
