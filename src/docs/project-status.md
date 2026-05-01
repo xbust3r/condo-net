@@ -1,7 +1,7 @@
 # Condo-Net — Estado del proyecto
 
 > Última actualización: 2026-05-01
-> Commit: `a39d699` | Push: ✅
+> condo-py: `e8c70d0` | condo-net: `2f56d20` | Push: ✅
 
 ---
 
@@ -110,7 +110,7 @@ Sub-páginas (`/dashboard/residents`, etc.) muestran **flecha atrás** en el hea
 | `GET /me/contexts` | Perfil + `roles_by_condominium` + `condominium_theme_id` |
 | `GET /condominiums/{id}` | Detalle con `theme_id` |
 | `GET /condominiums?ids=` | Bulk fetch (elimina N+1) |
-| `GET /condominiums/{id}/users` | Residentes — **⚠️ retorna 500** |
+| `GET /condominiums/{id}/users` | Residentes |
 | `GET /units?limit=200` | Unidades |
 | `GET /payments?condominium_id=` | Pagos |
 | `GET /buildings?condominium_id=` | Torres/Edificios |
@@ -137,6 +137,7 @@ Sub-páginas (`/dashboard/residents`, etc.) muestran **flecha atrás** en el hea
 1. **CORS** — `localhost:3001 → localhost:7501` bloqueado → proxy via Next.js rewrites (`/api/*` → backend)
 2. **Login response** — `auth-context` buscaba `data.access_token` pero la API anida en `data.data.access_token` → corregido
 3. **API URL** — `.env.local` apuntaba a `:8000` en vez de `:7501` → corregido
+4. **Residents 500** — `GET /condominiums/{id}/users` pasaba `offset=offset` pero el repositorio esperaba `skip` → typo en `routes_condominiums.py` (condo-py `e8c70d0`) + frontend no mapeaba la respuesta anidada correctamente → corregido (condo-net `2f56d20`)
 
 ---
 
@@ -144,10 +145,10 @@ Sub-páginas (`/dashboard/residents`, etc.) muestran **flecha atrás** en el hea
 
 | Item | Prioridad | Notas |
 |---|---|---|
-| **Endpoint `/condominiums/{id}/users` 500** | 🔴 Alta | Residents no carga — necesita fix en condo-py |
+| **Endpoint `/condominiums/{id}/users`** | ✅ Arreglado | `offset` → `skip` typo en routes_condominiums.py (commit `e8c70d0` en condo-py) |
 | **Empty state en Pagos** | 🟡 Media | API devuelve 0 resultados — sin datos de prueba |
 | **Fase 5 — enrich `/me/contexts`** | 🟡 Media | Eliminar N+1 calls ya implementado con bulk fetch |
-| **Fase 7 — Guía de tokens** | 🟢 Baja | Tokens semánticos en uso; guía pendiente |
+| **Fase 7 — Guía de tokens** | 🟢 Baja | `docs/theme-token-guide.md` creado en commit `4cd6cd8` |
 
 ---
 
