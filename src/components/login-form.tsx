@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,13 +10,14 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LogIn, Building2, Loader2 } from "lucide-react";
 
 export function LoginForm() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,91 +28,99 @@ export function LoginForm() {
     setError("");
     setLoading(true);
 
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Credenciales inválidas");
-        return;
-      }
-
-      router.push("/dashboard");
-    } catch {
-      setError("Error de conexión. Intenta de nuevo.");
-    } finally {
+    const errMsg = await login(email, password);
+    if (errMsg) {
+      setError(errMsg);
       setLoading(false);
+      return;
     }
+
+    // Success — redirect to condo selection
+    router.push("/select-condo");
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
-        <CardDescription>
-          Ingresa tus credenciales para acceder al panel
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
-          {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
-              {error}
+    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-gradient-to-b from-background to-muted px-4">
+      {/* Logo / Brand */}
+      <div className="mb-8 flex flex-col items-center gap-2">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg">
+          <Building2 className="h-8 w-8 text-primary-foreground" />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Condo-Net
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Gestión inteligente para tu condominio
+        </p>
+      </div>
+
+      <Card className="w-full max-w-sm shadow-md">
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-xl font-bold">Iniciar Sesión</CardTitle>
+          <CardDescription>
+            Ingresa tus credenciales para acceder
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="tu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                autoFocus
+                className="h-11"
+              />
             </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="tu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Contraseña</Label>
-              <a
-                href="/forgot-password"
-                className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-              >
-                ¿Olvidaste tu contraseña?
-              </a>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Contraseña</Label>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="h-11"
+              />
             </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-3 mt-2">
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Ingresando..." : "Ingresar"}
-          </Button>
-          <p className="text-xs text-muted-foreground text-center">
-            ¿No tienes cuenta?{" "}
-            <a
-              href="/register"
-              className="underline underline-offset-4 hover:text-primary"
+            <Button
+              type="submit"
+              className="h-11 w-full"
+              disabled={loading}
             >
-              Regístrate
-            </a>
-          </p>
-        </CardFooter>
-      </form>
-    </Card>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Ingresando...
+                </>
+              ) : (
+                <>
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Ingresar
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </form>
+      </Card>
+
+      <p className="mt-6 text-xs text-muted-foreground">
+        Condo-Net · Capsule Corp Technology
+      </p>
+    </div>
   );
 }
