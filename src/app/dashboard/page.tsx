@@ -17,26 +17,26 @@ import {
   BellOff,
   MessageSquareWarning,
   CalendarRange,
-  Settings2,
   User,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-interface PaymentStatus {
-  is_up_to_date: boolean;
-  pending_amount?: number;
-  currency?: string;
-  pending_count?: number;
-}
-
-interface AnnouncementItem {
-  id: number;
-  title: string;
-  body?: string;
-  created_at?: string;
-  published_at?: string;
-  updated_at?: string;
+interface DashboardSummary {
+  user_id: number;
+  condominium_id: number;
+  unread_notifications: number;
+  pending_incidents: number;
+  pending_packages: number;
+  upcoming_visitors: number;
+  payment_pending_total: number;
+  recent_announcements: Array<{
+    uuid: string;
+    title: string;
+    category: string;
+    published_at: string | null;
+    is_pinned: boolean;
+  }>;
 }
 
 // ── Quick links (residente) ───────────────────────────────────────────────
@@ -47,21 +47,19 @@ const quickLinks = [
   { label: "Incidencias", icon: MessageSquareWarning, color: "text-destructive", bg: "bg-destructive/10", path: "/dashboard/incidents" },
   { label: "Visitantes", icon: Users, color: "text-chart-2", bg: "bg-chart-2/10", path: "/dashboard/visitors" },
   { label: "Áreas comunes", icon: CalendarRange, color: "text-chart-4", bg: "bg-chart-4/10", path: "/dashboard/amenities" },
-  { label: "Reservas", icon: CalendarRange, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/bookings" },
-  { label: "Configuración", icon: Settings2, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/settings" },
   { label: "Mi perfil", icon: User, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/profile" },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function formatCurrency(amount: number, currency?: string) {
+function formatCurrency(amount: number) {
   return new Intl.NumberFormat("es-PE", {
     style: "currency",
-    currency: currency || "PEN",
+    currency: "PEN",
   }).format(amount);
 }
 
-function formatDate(iso?: string) {
+function formatDate(iso?: string | null) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("es-PE", {
     day: "numeric",
@@ -75,12 +73,8 @@ function formatDate(iso?: string) {
 export default function DashboardPage() {
   const { user, selectedCondominium, isLoading: authLoading } = useAuth();
   const router = useRouter();
-
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
-  const [paymentLoading, setPaymentLoading] = useState(true);
-  const [commsCount, setCommsCount] = useState<number>(0);
-  const [latestComm, setLatestComm] = useState<AnnouncementItem | null>(null);
-  const [commsLoading, setCommsLoading] = useState(true);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // ── Redirect if no condo selected ─────────────────────────────────────
 
@@ -90,107 +84,49 @@ export default function DashboardPage() {
     }
   }, [selectedCondominium, authLoading, router]);
 
-  // ── Fetch data on mount ───────────────────────────────────────────────
+  // ── Reset state when condo changes ───────────────────────────────────
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on condo change is intentional
+    setSummary(null);
+    setLoading(true);
+  }, [selectedCondominium]);
+
+  // ── Single fetch to residents/dashboard ───────────────────────────────
 
   useEffect(() => {
     if (!selectedCondominium) return;
 
     let cancelled = false;
 
-    async function fetchAll() {
-      // ── Payment status ──────────────────────────────────────────────
-      setPaymentLoading(true);
-
-      // Primary: /payments/status → fallback: /ar/user-summary → fallback: /ar/summary
-      const { data: payData } = await api.get<{
-        success: boolean;
-        data: PaymentStatus;
-      }>(`/payments/status?condominium_id=${selectedCondominium!.id}`);
-
-      if (!cancelled) {
-        if (payData?.data) {
-          setPaymentStatus(payData.data);
+    api
+      .get<{ success: boolean; data: DashboardSummary }>(
+        `/residents/dashboard?condominium_id=${selectedCondominium.id}`
+      )
+      .then(({ data: resData, error }) => {
+        if (cancelled) return;
+        if (!error && resData?.data) {
+          setSummary(resData.data);
         } else {
-          // Fallback 1: AR user summary
-          const { data: arData } = await api.get<{
-            success: boolean;
-            data: { is_up_to_date: boolean; pending_amount: number; currency?: string; pending_count: number };
-          }>(`/ar/user-summary?condominium_id=${selectedCondominium!.id}`);
-
-          if (!cancelled) {
-            if (arData?.data) {
-              setPaymentStatus(arData.data);
-            } else {
-              // Fallback 2: AR summary (may have different shape)
-              const { data: arSumData } = await api.get<{
-                success: boolean;
-                data: { total_pending: number; currency?: string; count: number };
-              }>(`/ar/summary?condominium_id=${selectedCondominium!.id}`);
-
-              if (!cancelled) {
-                if (arSumData?.data) {
-                  setPaymentStatus({
-                    is_up_to_date: arSumData.data.total_pending === 0,
-                    pending_amount: arSumData.data.total_pending,
-                    currency: arSumData.data.currency,
-                    pending_count: arSumData.data.count,
-                  });
-                } else {
-                  setPaymentStatus(null);
-                }
-              }
-            }
-          }
+          setSummary(null);
         }
-        setPaymentLoading(false);
-      }
-
-      // ── Communications ───────────────────────────────────────────────
-      setCommsLoading(true);
-
-      // Primary: /communications → fallback: /announcements
-      const { data: commData } = await api.get<{
-        success: boolean;
-        data: AnnouncementItem[];
-        total: number;
-        message: string;
-      }>(`/communications?condominium_id=${selectedCondominium!.id}&limit=1`);
-
-      if (!cancelled) {
-        if (commData?.data && Array.isArray(commData.data)) {
-          // Communications endpoint (if it exists) returns { data: [...items], total: N }
-          setCommsCount(commData.total ?? commData.data.length);
-          setLatestComm(commData.data[0] ?? null);
-        } else {
-          // Fallback: /announcements — response shape: { success, data: [...items], total: N }
-          const { data: annData } = await api.get<{
-            success: boolean;
-            data: AnnouncementItem[];
-            total: number;
-            message: string;
-          }>(`/announcements?condominium_id=${selectedCondominium!.id}&limit=1`);
-
-          if (!cancelled) {
-            if (annData?.data && Array.isArray(annData.data)) {
-              // annData.data = array of items (confirmed backend shape)
-              setCommsCount(annData.total ?? annData.data.length);
-              setLatestComm(annData.data[0] ?? null);
-            } else {
-              setCommsCount(0);
-              setLatestComm(null);
-            }
-          }
-        }
-        setCommsLoading(false);
-      }
-    }
-
-    fetchAll();
+        setLoading(false);
+      });
 
     return () => {
       cancelled = true;
     };
   }, [selectedCondominium]);
+
+  // ── Derived state ─────────────────────────────────────────────────────
+
+  const isUpToDate = summary ? summary.payment_pending_total === 0 : null;
+  const unpaidAmount = summary?.payment_pending_total ?? 0;
+  const announcements = summary?.recent_announcements ?? [];
+  const commsCount = summary
+    ? summary.unread_notifications + announcements.length
+    : 0;
+  const latestComm = announcements[0] ?? null;
 
   // ── Loading ───────────────────────────────────────────────────────────
 
@@ -224,52 +160,22 @@ export default function DashboardPage() {
         {/* Payment status */}
         <Card
           className={`border shadow-sm overflow-hidden ${
-            paymentStatus?.is_up_to_date
+            isUpToDate === true
               ? "bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800"
-              : paymentStatus && !paymentStatus.is_up_to_date
+              : isUpToDate === false
                 ? "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200 dark:border-red-800"
                 : ""
           }`}
         >
           <CardContent className="p-4">
-            {paymentLoading ? (
+            {loading ? (
               <div className="flex items-center gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  Verificando estado de pagos...
+                  Cargando dashboard...
                 </span>
               </div>
-            ) : paymentStatus ? (
-              <div className="flex items-center gap-3">
-                <div
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                    paymentStatus.is_up_to_date
-                      ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400"
-                      : "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400"
-                  }`}
-                >
-                  {paymentStatus.is_up_to_date ? (
-                    <CheckCircle2 className="h-5 w-5" />
-                  ) : (
-                    <AlertTriangle className="h-5 w-5" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">
-                    {paymentStatus.is_up_to_date
-                      ? "¡Al día en sus pagos!"
-                      : "Pagos pendientes"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {paymentStatus.is_up_to_date
-                      ? "No tienes deudas registradas"
-                      : paymentStatus.pending_amount != null
-                        ? `Debes ${formatCurrency(paymentStatus.pending_amount, paymentStatus.currency)}${paymentStatus.pending_count ? ` en ${paymentStatus.pending_count} ${paymentStatus.pending_count === 1 ? "recibo" : "recibos"}` : ""}`
-                        : "Tienes recibos pendientes de pago"}
-                  </p>
-                </div>
-              </div>
-            ) : (
+            ) : isUpToDate === null ? (
               <div className="flex items-center gap-3 opacity-50">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <CreditCard className="h-5 w-5" />
@@ -280,6 +186,34 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-xs text-muted-foreground/60 mt-0.5">
                     No disponible por el momento
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                    isUpToDate
+                      ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400"
+                      : "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400"
+                  }`}
+                >
+                  {isUpToDate ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    {isUpToDate
+                      ? "¡Al día en sus pagos!"
+                      : "Pagos pendientes"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isUpToDate
+                      ? "No tienes deudas registradas"
+                      : `Debes ${formatCurrency(unpaidAmount)}`}
                   </p>
                 </div>
               </div>
@@ -296,11 +230,11 @@ export default function DashboardPage() {
           }`}
         >
           <CardContent className="p-4">
-            {commsLoading ? (
+            {loading ? (
               <div className="flex items-center gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  Buscando comunicados...
+                  Cargando dashboard...
                 </span>
               </div>
             ) : commsCount > 0 ? (
@@ -317,8 +251,8 @@ export default function DashboardPage() {
                   {latestComm && (
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
                       {latestComm.title}
-                      {latestComm.created_at || latestComm.published_at
-                        ? ` · ${formatDate(latestComm.created_at || latestComm.published_at)}`
+                      {latestComm.published_at
+                        ? ` · ${formatDate(latestComm.published_at)}`
                         : ""}
                     </p>
                   )}
@@ -354,7 +288,9 @@ export default function DashboardPage() {
             onClick={() => router.push(link.path)}
             className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation active:scale-[0.98]"
           >
-            <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${link.bg} ${link.color}`}>
+            <div
+              className={`flex h-9 w-9 items-center justify-center rounded-lg ${link.bg} ${link.color}`}
+            >
               <link.icon className="h-5 w-5" />
             </div>
             <span className="flex-1 text-left text-sm font-medium text-foreground">
@@ -374,30 +310,44 @@ export default function DashboardPage() {
               Condominio
             </span>
           </div>
-          <h3 className="font-bold text-foreground">{selectedCondominium.name}</h3>
+          <h3 className="font-bold text-foreground">
+            {selectedCondominium.name}
+          </h3>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {selectedCondominium.code && (
               <div>
-                <p className="text-[10px] text-muted-foreground/60 uppercase">Código</p>
-                <p className="text-sm font-medium text-foreground">{selectedCondominium.code}</p>
+                <p className="text-[10px] text-muted-foreground/60 uppercase">
+                  Código
+                </p>
+                <p className="text-sm font-medium text-foreground">
+                  {selectedCondominium.code}
+                </p>
               </div>
             )}
             {selectedCondominium.city && (
               <div>
-                <p className="text-[10px] text-muted-foreground/60 uppercase">Ciudad</p>
-                <p className="text-sm font-medium text-foreground">{selectedCondominium.city}</p>
+                <p className="text-[10px] text-muted-foreground/60 uppercase">
+                  Ciudad
+                </p>
+                <p className="text-sm font-medium text-foreground">
+                  {selectedCondominium.city}
+                </p>
               </div>
             )}
             {selectedCondominium.address && (
               <div className="col-span-2">
-                <p className="text-[10px] text-muted-foreground/60 uppercase">Dirección</p>
+                <p className="text-[10px] text-muted-foreground/60 uppercase">
+                  Dirección
+                </p>
                 <p className="text-sm font-medium text-foreground line-clamp-2">
                   {selectedCondominium.address}
                 </p>
               </div>
             )}
             <div>
-              <p className="text-[10px] text-muted-foreground/60 uppercase">Tema</p>
+              <p className="text-[10px] text-muted-foreground/60 uppercase">
+                Tema
+              </p>
               <p className="text-sm font-medium text-foreground capitalize">
                 {selectedCondominium.theme_id || "default"}
               </p>
