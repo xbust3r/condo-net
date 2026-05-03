@@ -38,7 +38,6 @@ const RESIDENT_TABS: TabConfig[] = [
   { id: "dashboard", label: "Inicio",    icon: LayoutDashboard, path: "/dashboard" },
   { id: "payments",  label: "Pagos",     icon: CreditCard,      path: "/dashboard/payments" },
   { id: "amenities", label: "Áreas",     icon: CalendarRange,   path: "/dashboard/amenities" },
-  { id: "visitors",  label: "Visitas",   icon: Users,           path: "/dashboard/visitors" },
   { id: "receipts",  label: "Recibos",   icon: Receipt,         path: "/dashboard/receipts" },
   { id: "profile",   label: "Perfil",    icon: User,            path: "/dashboard/profile" },
 ];

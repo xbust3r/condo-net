@@ -42,7 +42,7 @@ export interface UserContext {
     last_name?: string;
     avatar_url?: string;
   } | null;
-  roles_by_condominium?: Record<number, Array<{ id: number; name: string; condominium_theme_id?: string | null }>>;
+  roles_by_condominium?: Record<number, Array<{ id: number; role: string; condominium_theme_id?: string | null }>>;
   condominiums: Condominium[];
   ownerships?: Ownership[];
 }

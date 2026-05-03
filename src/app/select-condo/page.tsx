@@ -18,13 +18,13 @@ import {
 
 function getUserRoleLabel(
   condoId: number,
-  rolesByCondo?: Record<number, Array<{ id: number; name: string }>>
+  rolesByCondo?: Record<number, Array<{ id: number; role: string }>>
 ): { label: string; variant: "default" | "secondary" | "outline" } | null {
   if (!rolesByCondo) return null;
   const roles = rolesByCondo[condoId];
   if (!roles || roles.length === 0) return null;
 
-  const roleNames = roles.map((r) => r.name.toLowerCase());
+  const roleNames = roles.map((r) => r.role.toLowerCase());
 
   if (roleNames.some((n) => n.includes("propietario") || n.includes("owner"))) {
     return { label: "Propietario", variant: "default" };
@@ -37,7 +37,7 @@ function getUserRoleLabel(
   }
 
   return {
-    label: roles[0].name.charAt(0).toUpperCase() + roles[0].name.slice(1),
+    label: roles[0].role.charAt(0).toUpperCase() + roles[0].role.slice(1),
     variant: "outline",
   };
 }

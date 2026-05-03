@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Loader2, LogOut, Building2, ArrowLeft } from "lucide-react";
 
 function resolveRole(
-  rolesByCondo?: Record<number, Array<{ id: number; name: string }>>,
+  rolesByCondo?: Record<number, Array<{ id: number; role: string }>>,
   condoId?: number | null
 ): "admin" | "resident" {
   if (!rolesByCondo || !condoId) return "resident";
   const roles = rolesByCondo[condoId];
   if (!roles || roles.length === 0) return "resident";
-  const names = roles.map((r) => r.name.toLowerCase());
+  const names = roles.map((r) => r.role.toLowerCase());
   if (names.some((n) => n.includes("admin") || n.includes("super"))) {
     return "admin";
   }
