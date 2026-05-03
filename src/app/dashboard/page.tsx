@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api-client";
@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Bell,
   BellOff,
+  CalendarRange,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -41,6 +42,8 @@ const quickLinks = [
   { label: "Unidades", icon: Home, color: "text-chart-2", bg: "bg-chart-2/10", path: "/dashboard/units" },
   { label: "Pagos", icon: CreditCard, color: "text-chart-3", bg: "bg-chart-3/10", path: "/dashboard/payments" },
   { label: "Torres", icon: Building2, color: "text-chart-4", bg: "bg-chart-4/10", path: "/dashboard/towers" },
+  { label: "Áreas Comunes", icon: Building2, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/amenities" },
+  { label: "Reservas", icon: CalendarRange, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/bookings" },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -67,11 +70,8 @@ export default function DashboardPage() {
   const { user, selectedCondominium, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
-  // Payment status
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(true);
-
-  // Communications
   const [commsCount, setCommsCount] = useState<number>(0);
   const [latestComm, setLatestComm] = useState<CommunicationItem | null>(null);
   const [commsLoading, setCommsLoading] = useState(true);
@@ -84,81 +84,85 @@ export default function DashboardPage() {
     }
   }, [selectedCondominium, authLoading, router]);
 
-  // ── Fetch payment status ──────────────────────────────────────────────
-
-  const fetchPaymentStatus = useCallback(async () => {
-    if (!selectedCondominium) return;
-    setPaymentLoading(true);
-
-    const { data, error } = await api.get<{
-      success: boolean;
-      data: PaymentStatus;
-    }>(`/payments/status?condominium_id=${selectedCondominium.id}`);
-
-    if (!error && data?.data) {
-      setPaymentStatus(data.data);
-    } else {
-      // Graceful fallback: try AR summary
-      const { data: arData } = await api.get<{
-        success: boolean;
-        data: { total_pending: number; currency?: string; count: number };
-      }>(`/ar/summary?condominium_id=${selectedCondominium.id}`);
-
-      if (arData?.data) {
-        setPaymentStatus({
-          is_up_to_date: arData.data.total_pending === 0,
-          pending_amount: arData.data.total_pending,
-          currency: arData.data.currency,
-          pending_count: arData.data.count,
-        });
-      } else {
-        // No endpoint available — show neutral state
-        setPaymentStatus(null);
-      }
-    }
-    setPaymentLoading(false);
-  }, [selectedCondominium]);
-
-  // ── Fetch communications ──────────────────────────────────────────────
-
-  const fetchCommunications = useCallback(async () => {
-    if (!selectedCondominium) return;
-    setCommsLoading(true);
-
-    const { data, error } = await api.get<{
-      success: boolean;
-      data: { items: CommunicationItem[]; total: number };
-    }>(`/communications?condominium_id=${selectedCondominium.id}&limit=1`);
-
-    if (!error && data?.data) {
-      setCommsCount(data.data.total ?? data.data.items.length);
-      setLatestComm(data.data.items[0] ?? null);
-    } else {
-      // Try announcements endpoint as fallback
-      const { data: annData } = await api.get<{
-        success: boolean;
-        data: { items: CommunicationItem[]; total: number };
-      }>(`/announcements?condominium_id=${selectedCondominium.id}&limit=1`);
-
-      if (!error && annData?.data) {
-        setCommsCount(annData.data.total ?? annData.data.items.length);
-        setLatestComm(annData.data.items[0] ?? null);
-      } else {
-        setCommsCount(0);
-        setLatestComm(null);
-      }
-    }
-    setCommsLoading(false);
-  }, [selectedCondominium]);
-
-  // ── Fetch on mount ────────────────────────────────────────────────────
+  // ── Fetch data on mount ───────────────────────────────────────────────
 
   useEffect(() => {
-    if (selectedCondominium) {
-      fetchPaymentStatus();
-      fetchCommunications();
+    if (!selectedCondominium) return;
+
+    let cancelled = false;
+
+    async function fetchAll() {
+      // Payment status
+      setPaymentLoading(true);
+      const { data: payData, error: payErr } = await api.get<{
+        success: boolean;
+        data: PaymentStatus;
+      }>(`/payments/status?condominium_id=${selectedCondominium!.id}`);
+
+      if (!cancelled) {
+        if (!payErr && payData?.data) {
+          setPaymentStatus(payData.data);
+        } else {
+          // Fallback: AR summary
+          const { data: arData } = await api.get<{
+            success: boolean;
+            data: { total_pending: number; currency?: string; count: number };
+          }>(`/ar/summary?condominium_id=${selectedCondominium!.id}`);
+
+          if (!cancelled) {
+            if (arData?.data) {
+              setPaymentStatus({
+                is_up_to_date: arData.data.total_pending === 0,
+                pending_amount: arData.data.total_pending,
+                currency: arData.data.currency,
+                pending_count: arData.data.count,
+              });
+            } else {
+              setPaymentStatus(null);
+            }
+          }
+        }
+        setPaymentLoading(false);
+      }
+
+      // Communications
+      setCommsLoading(true);
+      const { data: commData } = await api.get<{
+        success: boolean;
+        data: { items: CommunicationItem[]; total: number };
+      }>(`/communications?condominium_id=${selectedCondominium!.id}&limit=1`);
+
+      if (!cancelled) {
+        if (commData?.data) {
+          setCommsCount(commData.data.total ?? commData.data.items.length);
+          setLatestComm(commData.data.items[0] ?? null);
+        } else {
+          // Fallback: announcements
+          const { data: annData } = await api.get<{
+            success: boolean;
+            data: { items: CommunicationItem[]; total: number };
+          }>(`/announcements?condominium_id=${selectedCondominium!.id}&limit=1`);
+
+          if (!cancelled) {
+            if (annData?.data) {
+              setCommsCount(annData.data.total ?? annData.data.items.length);
+              setLatestComm(annData.data.items[0] ?? null);
+            } else {
+              setCommsCount(0);
+              setLatestComm(null);
+            }
+          }
+        }
+        setCommsLoading(false);
+      }
     }
-  }, [selectedCondominium, fetchPaymentStatus, fetchCommunications]);
+
+    fetchAll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCondominium]);
 
   // ── Loading ───────────────────────────────────────────────────────────
 
@@ -189,7 +193,7 @@ export default function DashboardPage() {
 
       {/* ── Status cards ──────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 mb-6">
-        {/* Payment status card */}
+        {/* Payment status */}
         <Card
           className={`border shadow-sm overflow-hidden ${
             paymentStatus?.is_up_to_date
@@ -255,7 +259,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Communications card */}
+        {/* Communications */}
         <Card
           className={`border shadow-sm overflow-hidden ${
             commsCount > 0
