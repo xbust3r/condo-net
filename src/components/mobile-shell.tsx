@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Users,
@@ -7,50 +8,59 @@ import {
   CreditCard,
   Building2,
   LayoutDashboard,
+  Bell,
+  CalendarRange,
+  MessageSquareWarning,
+  User,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const tabs = [
-  {
-    id: "dashboard",
-    label: "Inicio",
-    icon: LayoutDashboard,
-    path: "/dashboard",
-  },
-  {
-    id: "residents",
-    label: "Residentes",
-    icon: Users,
-    path: "/dashboard/residents",
-  },
-  {
-    id: "units",
-    label: "Unidades",
-    icon: Home,
-    path: "/dashboard/units",
-  },
-  {
-    id: "payments",
-    label: "Pagos",
-    icon: CreditCard,
-    path: "/dashboard/payments",
-  },
-  {
-    id: "towers",
-    label: "Torres",
-    icon: Building2,
-    path: "/dashboard/towers",
-  },
-] as const;
+export interface TabConfig {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  path: string;
+}
 
-export function MobileShell({ children }: { children: React.ReactNode }) {
+// ── Default admin tabs ──────────────────────────────────────────────────
+
+const ADMIN_TABS: TabConfig[] = [
+  { id: "dashboard", label: "Inicio",  icon: LayoutDashboard, path: "/dashboard" },
+  { id: "residents",  label: "Residentes", icon: Users,         path: "/dashboard/residents" },
+  { id: "units",      label: "Unidades",   icon: Home,           path: "/dashboard/units" },
+  { id: "payments",   label: "Pagos",      icon: CreditCard,     path: "/dashboard/payments" },
+  { id: "towers",     label: "Torres",     icon: Building2,      path: "/dashboard/towers" },
+];
+
+const RESIDENT_TABS: TabConfig[] = [
+  { id: "dashboard", label: "Inicio",    icon: LayoutDashboard, path: "/dashboard" },
+  { id: "payments",  label: "Pagos",     icon: CreditCard,      path: "/dashboard/payments" },
+  { id: "amenities", label: "Áreas",     icon: CalendarRange,   path: "/dashboard/amenities" },
+  { id: "visitors",  label: "Visitas",   icon: Users,           path: "/dashboard/visitors" },
+  { id: "profile",   label: "Perfil",    icon: User,            path: "/dashboard/profile" },
+];
+
+// ── Component ───────────────────────────────────────────────────────────
+
+export function MobileShell({
+  children,
+  tabs,
+  role = "admin",
+}: {
+  children: React.ReactNode;
+  tabs?: TabConfig[];
+  role?: "admin" | "resident";
+}) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const activeTabs = tabs ?? (role === "resident" ? RESIDENT_TABS : ADMIN_TABS);
 
   // Determine active tab: match the tab whose path is a prefix of current pathname,
   // preferring the most specific match
   const activeId =
-    tabs.findLast((t) => pathname.startsWith(t.path))?.id ?? "dashboard";
+    activeTabs.findLast((t) => pathname.startsWith(t.path))?.id ?? "dashboard";
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -64,7 +74,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
         aria-label="Navegación principal"
       >
         <div className="mx-auto flex h-16 max-w-lg items-center justify-around px-2">
-          {tabs.map((tab) => {
+          {activeTabs.map((tab) => {
             const isActive = tab.id === activeId;
             return (
               <button

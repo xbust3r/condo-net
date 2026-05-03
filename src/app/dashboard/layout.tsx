@@ -7,6 +7,20 @@ import { MobileShell } from "@/components/mobile-shell";
 import { Button } from "@/components/ui/button";
 import { Loader2, LogOut, Building2, ArrowLeft } from "lucide-react";
 
+function resolveRole(
+  rolesByCondo?: Record<number, Array<{ id: number; name: string }>>,
+  condoId?: number | null
+): "admin" | "resident" {
+  if (!rolesByCondo || !condoId) return "resident";
+  const roles = rolesByCondo[condoId];
+  if (!roles || roles.length === 0) return "resident";
+  const names = roles.map((r) => r.name.toLowerCase());
+  if (names.some((n) => n.includes("admin") || n.includes("super"))) {
+    return "admin";
+  }
+  return "resident";
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -32,8 +46,10 @@ export default function DashboardLayout({
 
   const isDashboard = pathname === "/dashboard";
 
+  const userRole = resolveRole(user?.roles_by_condominium, selectedCondominium?.id);
+
   return (
-    <MobileShell>
+    <MobileShell role={userRole}>
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center gap-2 border-b bg-background/80 px-4 py-2.5 backdrop-blur-sm safe-area-top">
         {/* Back button on sub-pages */}
