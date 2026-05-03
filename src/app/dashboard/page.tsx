@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Loader2,
   Users,
-  Home,
   CreditCard,
   Building2,
   ChevronRight,
@@ -16,7 +15,10 @@ import {
   AlertTriangle,
   Bell,
   BellOff,
+  MessageSquareWarning,
   CalendarRange,
+  Settings2,
+  User,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -28,22 +30,26 @@ interface PaymentStatus {
   pending_count?: number;
 }
 
-interface CommunicationItem {
+interface AnnouncementItem {
   id: number;
   title: string;
   body?: string;
-  created_at: string;
+  created_at?: string;
+  published_at?: string;
+  updated_at?: string;
 }
 
-// ── Quick links ────────────────────────────────────────────────────────────
+// ── Quick links (residente) ───────────────────────────────────────────────
 
 const quickLinks = [
-  { label: "Residentes", icon: Users, color: "text-chart-1", bg: "bg-chart-1/10", path: "/dashboard/residents" },
-  { label: "Unidades", icon: Home, color: "text-chart-2", bg: "bg-chart-2/10", path: "/dashboard/units" },
-  { label: "Pagos", icon: CreditCard, color: "text-chart-3", bg: "bg-chart-3/10", path: "/dashboard/payments" },
-  { label: "Torres", icon: Building2, color: "text-chart-4", bg: "bg-chart-4/10", path: "/dashboard/towers" },
-  { label: "Áreas Comunes", icon: Building2, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/amenities" },
+  { label: "Mis pagos", icon: CreditCard, color: "text-chart-3", bg: "bg-chart-3/10", path: "/dashboard/payments" },
+  { label: "Comunicados", icon: Bell, color: "text-chart-1", bg: "bg-chart-1/10", path: "/dashboard/communications" },
+  { label: "Incidencias", icon: MessageSquareWarning, color: "text-destructive", bg: "bg-destructive/10", path: "/dashboard/incidents" },
+  { label: "Visitantes", icon: Users, color: "text-chart-2", bg: "bg-chart-2/10", path: "/dashboard/visitors" },
+  { label: "Áreas comunes", icon: CalendarRange, color: "text-chart-4", bg: "bg-chart-4/10", path: "/dashboard/amenities" },
   { label: "Reservas", icon: CalendarRange, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/bookings" },
+  { label: "Configuración", icon: Settings2, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/settings" },
+  { label: "Mi perfil", icon: User, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/profile" },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -73,7 +79,7 @@ export default function DashboardPage() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(true);
   const [commsCount, setCommsCount] = useState<number>(0);
-  const [latestComm, setLatestComm] = useState<CommunicationItem | null>(null);
+  const [latestComm, setLatestComm] = useState<AnnouncementItem | null>(null);
   const [commsLoading, setCommsLoading] = useState(true);
 
   // ── Redirect if no condo selected ─────────────────────────────────────
@@ -92,61 +98,83 @@ export default function DashboardPage() {
     let cancelled = false;
 
     async function fetchAll() {
-      // Payment status
+      // ── Payment status ──────────────────────────────────────────────
       setPaymentLoading(true);
-      const { data: payData, error: payErr } = await api.get<{
+
+      // Primary: /payments/status → fallback: /ar/user-summary → fallback: /ar/summary
+      const { data: payData } = await api.get<{
         success: boolean;
         data: PaymentStatus;
       }>(`/payments/status?condominium_id=${selectedCondominium!.id}`);
 
       if (!cancelled) {
-        if (!payErr && payData?.data) {
+        if (payData?.data) {
           setPaymentStatus(payData.data);
         } else {
-          // Fallback: AR summary
+          // Fallback 1: AR user summary
           const { data: arData } = await api.get<{
             success: boolean;
-            data: { total_pending: number; currency?: string; count: number };
-          }>(`/ar/summary?condominium_id=${selectedCondominium!.id}`);
+            data: { is_up_to_date: boolean; pending_amount: number; currency?: string; pending_count: number };
+          }>(`/ar/user-summary?condominium_id=${selectedCondominium!.id}`);
 
           if (!cancelled) {
             if (arData?.data) {
-              setPaymentStatus({
-                is_up_to_date: arData.data.total_pending === 0,
-                pending_amount: arData.data.total_pending,
-                currency: arData.data.currency,
-                pending_count: arData.data.count,
-              });
+              setPaymentStatus(arData.data);
             } else {
-              setPaymentStatus(null);
+              // Fallback 2: AR summary (may have different shape)
+              const { data: arSumData } = await api.get<{
+                success: boolean;
+                data: { total_pending: number; currency?: string; count: number };
+              }>(`/ar/summary?condominium_id=${selectedCondominium!.id}`);
+
+              if (!cancelled) {
+                if (arSumData?.data) {
+                  setPaymentStatus({
+                    is_up_to_date: arSumData.data.total_pending === 0,
+                    pending_amount: arSumData.data.total_pending,
+                    currency: arSumData.data.currency,
+                    pending_count: arSumData.data.count,
+                  });
+                } else {
+                  setPaymentStatus(null);
+                }
+              }
             }
           }
         }
         setPaymentLoading(false);
       }
 
-      // Communications
+      // ── Communications ───────────────────────────────────────────────
       setCommsLoading(true);
+
+      // Primary: /communications → fallback: /announcements
       const { data: commData } = await api.get<{
         success: boolean;
-        data: { items: CommunicationItem[]; total: number };
+        data: AnnouncementItem[];
+        total: number;
+        message: string;
       }>(`/communications?condominium_id=${selectedCondominium!.id}&limit=1`);
 
       if (!cancelled) {
-        if (commData?.data) {
-          setCommsCount(commData.data.total ?? commData.data.items.length);
-          setLatestComm(commData.data.items[0] ?? null);
+        if (commData?.data && Array.isArray(commData.data)) {
+          // Communications endpoint (if it exists) returns { data: [...items], total: N }
+          setCommsCount(commData.total ?? commData.data.length);
+          setLatestComm(commData.data[0] ?? null);
         } else {
-          // Fallback: announcements
+          // Fallback: /announcements — response shape: { success, data: [...items], total: N }
           const { data: annData } = await api.get<{
             success: boolean;
-            data: { items: CommunicationItem[]; total: number };
+            data: AnnouncementItem[];
+            total: number;
+            message: string;
           }>(`/announcements?condominium_id=${selectedCondominium!.id}&limit=1`);
 
           if (!cancelled) {
-            if (annData?.data) {
-              setCommsCount(annData.data.total ?? annData.data.items.length);
-              setLatestComm(annData.data.items[0] ?? null);
+            if (annData?.data && Array.isArray(annData.data)) {
+              // annData.data = array of items (confirmed backend shape)
+              setCommsCount(annData.total ?? annData.data.length);
+              setLatestComm(annData.data[0] ?? null);
             } else {
               setCommsCount(0);
               setLatestComm(null);
@@ -289,8 +317,8 @@ export default function DashboardPage() {
                   {latestComm && (
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
                       {latestComm.title}
-                      {latestComm.created_at
-                        ? ` · ${formatDate(latestComm.created_at)}`
+                      {latestComm.created_at || latestComm.published_at
+                        ? ` · ${formatDate(latestComm.created_at || latestComm.published_at)}`
                         : ""}
                     </p>
                   )}
