@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,12 +14,34 @@ import {
 } from "@/components/ui/card";
 import {
   Building2,
-  ChevronRight,
   MapPin,
   Home,
   LogOut,
   Loader2,
+  BadgeCheck,
+  User,
 } from "lucide-react";
+
+function getRoleLabel(
+  condoId: number,
+  rolesByCondo?: Record<number, Array<{ id: number; name: string }>>
+): { label: string; color: string } {
+  const roles = rolesByCondo?.[condoId];
+  if (!roles || roles.length === 0) return { label: "Residente", color: "bg-muted text-muted-foreground" };
+
+  const roleNames = roles.map((r) => r.name.toLowerCase());
+  // Priority: owner > tenant > resident > admin
+  if (roleNames.some((n) => n.includes("propietario") || n.includes("owner"))) {
+    return { label: "Propietario", color: "bg-chart-2/15 text-chart-2" };
+  }
+  if (roleNames.some((n) => n.includes("inquilino") || n.includes("tenant"))) {
+    return { label: "Inquilino", color: "bg-chart-3/15 text-chart-3" };
+  }
+  if (roleNames.some((n) => n.includes("admin"))) {
+    return { label: "Administrador", color: "bg-chart-1/15 text-chart-1" };
+  }
+  return { label: "Residente", color: "bg-muted text-muted-foreground" };
+}
 
 export default function SelectCondoPage() {
   const { user, selectedCondominium, selectCondominium, logout, isLoading } =
@@ -51,9 +74,7 @@ export default function SelectCondoPage() {
       <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-background/80 px-4 py-3 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <Building2 className="h-5 w-5 text-primary" />
-          <span className="font-semibold text-foreground">
-            Condo-Net
-          </span>
+          <span className="font-semibold text-foreground">Condo-Net</span>
         </div>
         <Button
           variant="ghost"
@@ -92,39 +113,86 @@ export default function SelectCondoPage() {
           </Card>
         ) : (
           <div className="flex flex-col gap-3">
-            {user.condominiums.map((condo) => (
-              <button
-                key={condo.id}
-                onClick={() => handleSelect(condo)}
-                className="group flex w-full items-center gap-4 rounded-xl border bg-card p-4 text-left shadow-sm transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.98]"
-              >
-                {/* Icon */}
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Building2 className="h-6 w-6" />
-                </div>
+            {user.condominiums.map((condo) => {
+              const role = getRoleLabel(
+                condo.id,
+                user.roles_by_condominium
+              );
+              return (
+                <div
+                  key={condo.id}
+                  className="flex w-full items-center gap-4 rounded-xl border bg-card p-4 shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
+                >
+                  {/* Logo */}
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">
+                    {condo.logo_url ? (
+                      <Image
+                        src={condo.logo_url}
+                        alt={condo.name}
+                        width={48}
+                        height={48}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Building2 className="h-6 w-6" />
+                    )}
+                  </div>
 
-                {/* Info */}
-                <div className="flex flex-1 flex-col min-w-0">
-                  <h3 className="font-semibold text-foreground truncate">
-                    {condo.name}
-                  </h3>
-                  {condo.city && (
-                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      {[condo.city, condo.country].filter(Boolean).join(", ")}
-                    </p>
-                  )}
-                  {condo.code && (
-                    <p className="text-xs text-muted-foreground/70">
-                      Código: {condo.code}
-                    </p>
-                  )}
-                </div>
+                  {/* Info */}
+                  <div className="flex flex-1 flex-col min-w-0 gap-0.5">
+                    <h3 className="font-semibold text-foreground truncate">
+                      {condo.name}
+                    </h3>
 
-                {/* Arrow */}
-                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
-              </button>
-            ))}
+                    {/* Role badge */}
+                    <span
+                      className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${role.color}`}
+                    >
+                      {role.label === "Propietario" ? (
+                        <BadgeCheck className="h-3 w-3" />
+                      ) : (
+                        <User className="h-3 w-3" />
+                      )}
+                      {role.label}
+                    </span>
+
+                    {/* Address */}
+                    {condo.address && (
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground/70 truncate">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        {condo.address}
+                      </p>
+                    )}
+
+                    {/* City + Country fallback */}
+                    {!condo.address && condo.city && (
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground/70">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        {[condo.city, condo.country]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    )}
+
+                    {/* Code */}
+                    {condo.code && (
+                      <p className="text-[11px] text-muted-foreground/50">
+                        {condo.code}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Action button */}
+                  <Button
+                    size="sm"
+                    onClick={() => handleSelect(condo)}
+                    className="shrink-0"
+                  >
+                    Ingresar
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         )}
       </main>

@@ -21,8 +21,16 @@ export interface Condominium {
   name: string;
   city?: string;
   country?: string;
+  address?: string;
   status?: number;
   theme_id?: string | null;
+  logo_url?: string | null;
+}
+
+export interface Ownership {
+  id: number;
+  condominium_id: number;
+  unit_id: number;
 }
 
 export interface UserContext {
@@ -36,6 +44,7 @@ export interface UserContext {
   } | null;
   roles_by_condominium?: Record<number, Array<{ id: number; name: string; condominium_theme_id?: string | null }>>;
   condominiums: Condominium[];
+  ownerships?: Ownership[];
 }
 
 interface AuthState {
@@ -162,6 +171,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: string;
             city?: string;
             country?: string;
+            address?: string;
+            logo_url?: string | null;
             status: number;
             theme_id?: string | null;
           }>;
@@ -180,6 +191,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             condo.name = details.name;
             condo.city = details.city;
             condo.country = details.country;
+            condo.address = details.address;
+            condo.logo_url = details.logo_url;
             condo.status = details.status;
             // Prefer theme_id from dedicated endpoint; fallback to role enrichment
             condo.theme_id = details.theme_id ?? condo.theme_id;
@@ -200,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : null,
       roles_by_condominium: ctx.roles_by_condominium,
       condominiums: resolvedCondos,
+      ownerships: ctx.ownerships ?? [],
     });
   }
 
