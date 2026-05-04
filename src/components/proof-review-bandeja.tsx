@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   CheckCircle,
   XCircle,
@@ -100,6 +101,7 @@ export function ProofReviewBandeja({
   error,
   onRefresh,
 }: ProofReviewBandejaProps) {
+  const t = useTranslations("forms");
   const [bankNames, setBankNames] = useState<Record<number, string>>({});
   const [txnCodes, setTxnCodes] = useState<Record<number, string>>({});
   const [notesMap, setNotesMap] = useState<Record<number, string>>({});
@@ -114,7 +116,7 @@ export function ProofReviewBandeja({
     if (!bank || !txn) {
       setActionError((prev) => ({
         ...prev,
-        [proof.id]: "Banco y código de transacción son requeridos.",
+        [proof.id]: t("bankAndCodeRequired"),
       }));
       return;
     }
@@ -180,7 +182,7 @@ export function ProofReviewBandeja({
         <CardContent className="flex flex-col items-center gap-3 py-12">
           <Clock className="h-12 w-12 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
-            No hay comprobantes pendientes de revisión.
+            {t("noPendingProofs")}
           </p>
         </CardContent>
       </Card>
@@ -206,7 +208,7 @@ export function ProofReviewBandeja({
                 </div>
                 <Badge variant="secondary" className="shrink-0">
                   <Clock className="h-3 w-3 mr-1" />
-                  Pendiente
+                  {t("pending")}
                 </Badge>
               </div>
 
@@ -214,11 +216,11 @@ export function ProofReviewBandeja({
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <User className="h-3 w-3" />
-                  {proof.submitted_by_name || `Usuario #${proof.submitted_by}`}
+                  {proof.submitted_by_name || `${t("user")} #${proof.submitted_by}`}
                 </div>
                 <div className="flex items-center gap-1">
                   <Hash className="h-3 w-3" />
-                  {proof.unit_code || `Unidad #${proof.unit_id}`}
+                  {proof.unit_code || `${t("unit")} #${proof.unit_id}`}
                 </div>
                 <div className="flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
@@ -234,7 +236,7 @@ export function ProofReviewBandeja({
 
               {proof.ar_reference && (
                 <p className="text-xs text-muted-foreground">
-                  Concepto: {proof.ar_reference}
+                  {t("concept")}: {proof.ar_reference}
                 </p>
               )}
 
@@ -246,7 +248,7 @@ export function ProofReviewBandeja({
                 className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
               >
                 <Eye className="h-3 w-3" />
-                Ver archivo
+                {t("viewFile")}
               </a>
 
               {/* Admin data inputs */}
@@ -254,10 +256,10 @@ export function ProofReviewBandeja({
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs font-medium text-foreground">
-                      Banco *
+                      {t("bank")} *
                     </label>
                     <Input
-                      placeholder="Ej: BCP, BBVA..."
+                      placeholder="BCP, BBVA..."
                       value={bankNames[proof.id] || ""}
                       onChange={(e) => {
                         setBankNames((prev) => ({
@@ -272,7 +274,7 @@ export function ProofReviewBandeja({
                   </div>
                   <div>
                     <label className="text-xs font-medium text-foreground">
-                      Código de Transacción *
+                      {t("transactionCode")} *
                     </label>
                     <Input
                       placeholder="N° de operación"
@@ -291,10 +293,10 @@ export function ProofReviewBandeja({
                 </div>
                 <div>
                   <label className="text-xs font-medium text-foreground">
-                    Observaciones
+                    {t("notes")}
                   </label>
                   <Textarea
-                    placeholder="Opcional..."
+                    placeholder={t("optional") + "..."}
                     value={notesMap[proof.id] || ""}
                     onChange={(e) =>
                       setNotesMap((prev) => ({
@@ -322,7 +324,7 @@ export function ProofReviewBandeja({
                     disabled={submitting[proof.id]}
                   >
                     <XCircle className="h-4 w-4 mr-1" />
-                    Rechazar
+                    {t("reject")}
                   </Button>
                   <Button
                     size="sm"
@@ -334,7 +336,7 @@ export function ProofReviewBandeja({
                     ) : (
                       <CheckCircle className="h-4 w-4 mr-1" />
                     )}
-                    Aprobar Pago
+                    {t("approvePayment")}
                   </Button>
                 </div>
               </div>

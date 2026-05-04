@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api-client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,29 +40,18 @@ interface DashboardSummary {
   }>;
 }
 
-// ── Quick links (residente) ───────────────────────────────────────────────
-
-const quickLinks = [
-  { label: "Mis pagos", icon: CreditCard, color: "text-chart-3", bg: "bg-chart-3/10", path: "/dashboard/payments" },
-  { label: "Comunicados", icon: Bell, color: "text-chart-1", bg: "bg-chart-1/10", path: "/dashboard/communications" },
-  { label: "Incidencias", icon: MessageSquareWarning, color: "text-destructive", bg: "bg-destructive/10", path: "/dashboard/incidents" },
-  { label: "Visitantes", icon: Users, color: "text-chart-2", bg: "bg-chart-2/10", path: "/dashboard/visitors" },
-  { label: "Áreas comunes", icon: CalendarRange, color: "text-chart-4", bg: "bg-chart-4/10", path: "/dashboard/amenities" },
-  { label: "Mi perfil", icon: User, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/profile" },
-];
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("es-PE", {
+function formatCurrency(amount: number, locale: string) {
+  return new Intl.NumberFormat(locale === "en" ? "en-US" : "es-PE", {
     style: "currency",
     currency: "PEN",
   }).format(amount);
 }
 
-function formatDate(iso?: string | null) {
+function formatDate(iso: string | null | undefined, locale: string) {
   if (!iso) return "";
-  return new Date(iso).toLocaleDateString("es-PE", {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "es-PE", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -71,10 +61,24 @@ function formatDate(iso?: string | null) {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const t = useTranslations("dashboard");
+  const tn = useTranslations("nav");
   const { user, selectedCondominium, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const locale = useLocale();
+
+  // ── Quick links ────────────────────────────────────────────────────────
+
+  const quickLinks = [
+    { key: "payments",  icon: CreditCard, color: "text-chart-3", bg: "bg-chart-3/10", path: "/dashboard/payments" },
+    { key: "announcements", icon: Bell, color: "text-chart-1", bg: "bg-chart-1/10", path: "/dashboard/communications" },
+    { key: "incidents", icon: MessageSquareWarning, color: "text-destructive", bg: "bg-destructive/10", path: "/dashboard/incidents" },
+    { key: "visitors", icon: Users, color: "text-chart-2", bg: "bg-chart-2/10", path: "/dashboard/visitors" },
+    { key: "amenities", icon: CalendarRange, color: "text-chart-4", bg: "bg-chart-4/10", path: "/dashboard/amenities" },
+    { key: "profile", icon: User, color: "text-chart-5", bg: "bg-chart-5/10", path: "/dashboard/profile" },
+  ];
 
   // ── Redirect if no condo selected ─────────────────────────────────────
 
@@ -87,7 +91,6 @@ export default function DashboardPage() {
   // ── Reset state when condo changes ───────────────────────────────────
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on condo change is intentional
     setSummary(null);
     setLoading(true);
   }, [selectedCondominium]);
@@ -145,7 +148,7 @@ export default function DashboardPage() {
       {/* Welcome */}
       <div className="mb-5">
         <p className="text-sm text-muted-foreground">
-          ¡Hola{user?.name ? `, ${user.name.split(" ")[0]}` : ""}!
+          {t("welcome")}{user?.name ? `, ${user.name.split(" ")[0]}` : ""}!
         </p>
         <p className="text-xs text-muted-foreground/60 mt-0.5">
           {selectedCondominium.code && `${selectedCondominium.code} · `}
@@ -172,7 +175,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  Cargando dashboard...
+                  {t("loading")}
                 </span>
               </div>
             ) : isUpToDate === null ? (
@@ -182,10 +185,10 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-muted-foreground">
-                    Estado de pagos
+                    {t("paymentStatus")}
                   </p>
                   <p className="text-xs text-muted-foreground/60 mt-0.5">
-                    No disponible por el momento
+                    {t("noData")}
                   </p>
                 </div>
               </div>
@@ -207,13 +210,13 @@ export default function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">
                     {isUpToDate
-                      ? "¡Al día en sus pagos!"
-                      : "Pagos pendientes"}
+                      ? t("allPaidUp")
+                      : t("pendingPayments")}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {isUpToDate
-                      ? "No tienes deudas registradas"
-                      : `Debes ${formatCurrency(unpaidAmount)}`}
+                      ? t("noDebts")
+                      : t("debtAmount", { amount: formatCurrency(unpaidAmount, locale) })}
                   </p>
                 </div>
               </div>
@@ -234,7 +237,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  Cargando dashboard...
+                  {t("loading")}
                 </span>
               </div>
             ) : commsCount > 0 ? (
@@ -245,14 +248,14 @@ export default function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">
                     {commsCount === 1
-                      ? "1 comunicado pendiente"
-                      : `${commsCount} comunicados pendientes`}
+                      ? t("oneAnnouncement")
+                      : t("manyAnnouncements", { count: commsCount })}
                   </p>
                   {latestComm && (
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
                       {latestComm.title}
                       {latestComm.published_at
-                        ? ` · ${formatDate(latestComm.published_at)}`
+                        ? ` · ${formatDate(latestComm.published_at, locale)}`
                         : ""}
                     </p>
                   )}
@@ -265,10 +268,10 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">
-                    Comunicados
+                    {t("announcements")}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Sin novedades
+                    {t("noNews")}
                   </p>
                 </div>
               </div>
@@ -279,7 +282,7 @@ export default function DashboardPage() {
 
       {/* ── Quick access menu ──────────────────────────────────────────── */}
       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-3">
-        Acceso rápido
+        {t("quickActions")}
       </p>
       <div className="flex flex-col gap-1 mb-6">
         {quickLinks.map((link) => (
@@ -294,7 +297,7 @@ export default function DashboardPage() {
               <link.icon className="h-5 w-5" />
             </div>
             <span className="flex-1 text-left text-sm font-medium text-foreground">
-              {link.label}
+              {tn(link.key)}
             </span>
             <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
           </button>
@@ -307,7 +310,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2 mb-2">
             <Building2 className="h-4 w-4 text-primary" />
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Condominio
+              {t("condominium")}
             </span>
           </div>
           <h3 className="font-bold text-foreground">
@@ -317,7 +320,7 @@ export default function DashboardPage() {
             {selectedCondominium.code && (
               <div>
                 <p className="text-[10px] text-muted-foreground/60 uppercase">
-                  Código
+                  {t("code")}
                 </p>
                 <p className="text-sm font-medium text-foreground">
                   {selectedCondominium.code}
@@ -327,7 +330,7 @@ export default function DashboardPage() {
             {selectedCondominium.city && (
               <div>
                 <p className="text-[10px] text-muted-foreground/60 uppercase">
-                  Ciudad
+                  {t("city")}
                 </p>
                 <p className="text-sm font-medium text-foreground">
                   {selectedCondominium.city}
@@ -337,7 +340,7 @@ export default function DashboardPage() {
             {selectedCondominium.address && (
               <div className="col-span-2">
                 <p className="text-[10px] text-muted-foreground/60 uppercase">
-                  Dirección
+                  {t("address")}
                 </p>
                 <p className="text-sm font-medium text-foreground line-clamp-2">
                   {selectedCondominium.address}
@@ -346,7 +349,7 @@ export default function DashboardPage() {
             )}
             <div>
               <p className="text-[10px] text-muted-foreground/60 uppercase">
-                Tema
+                {t("theme")}
               </p>
               <p className="text-sm font-medium text-foreground capitalize">
                 {selectedCondominium.theme_id || "default"}

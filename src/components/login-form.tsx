@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,8 @@ import {
 import { LogIn, Building2, Loader2 } from "lucide-react";
 
 export function LoginForm() {
+  const t = useTranslations("auth");
+  const tn = useTranslations("nav");
   const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
@@ -35,7 +38,6 @@ export function LoginForm() {
       return;
     }
 
-    // Success — redirect to condo selection
     router.push("/select-condo");
   }
 
@@ -47,18 +49,18 @@ export function LoginForm() {
           <Building2 className="h-8 w-8 text-primary-foreground" />
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Condo-Net
+          {tn("condoNet")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Gestión inteligente para tu condominio
+          {tn("tagline")}
         </p>
       </div>
 
       <Card className="w-full max-w-sm shadow-md">
         <CardHeader className="space-y-1 pb-4">
-          <CardTitle className="text-xl font-bold">Iniciar Sesión</CardTitle>
+          <CardTitle className="text-xl font-bold">{t("loginTitle")}</CardTitle>
           <CardDescription>
-            Ingresa tus credenciales para acceder
+            {t("loginSubtitle")}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -69,7 +71,7 @@ export function LoginForm() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -84,7 +86,7 @@ export function LoginForm() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Contraseña</Label>
+                <Label htmlFor="password">{t("password")}</Label>
               </div>
               <Input
                 id="password"
@@ -105,12 +107,12 @@ export function LoginForm() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Ingresando...
+                  {t("loggingIn")}
                 </>
               ) : (
                 <>
                   <LogIn className="mr-2 h-4 w-4" />
-                  Ingresar
+                  {t("loginButton")}
                 </>
               )}
             </Button>
@@ -119,7 +121,7 @@ export function LoginForm() {
       </Card>
 
       <p className="mt-6 text-xs text-muted-foreground">
-        Condo-Net · Capsule Corp Technology
+        {tn("condoNet")} · Capsule Corp Technology
       </p>
     </div>
   );

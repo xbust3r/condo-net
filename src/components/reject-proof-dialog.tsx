@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -27,13 +28,14 @@ export function RejectProofDialog({
   proofFile,
   proofId,
 }: RejectProofDialogProps) {
+  const t = useTranslations("forms");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   async function handleConfirm() {
     if (!reason.trim()) {
-      setError("El motivo de rechazo es requerido.");
+      setError(t("rejectionReasonRequired"));
       return;
     }
 
@@ -45,7 +47,7 @@ export function RejectProofDialog({
       setReason("");
       onClose();
     } catch (e: any) {
-      setError(e?.message || "Error al rechazar el comprobante.");
+      setError(e?.message || t("rejectionError"));
     } finally {
       setSubmitting(false);
     }
@@ -65,22 +67,22 @@ export function RejectProofDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Rechazar Comprobante
+            {t("rejectProof")}
           </DialogTitle>
           <DialogDescription>
-            Estás por rechazar el comprobante{" "}
+            {t("rejectProofDesc1")}{" "}
             <span className="font-medium text-foreground">{proofFile}</span>.
-            Esto no registrará ningún pago. El residente podrá ver el motivo.
+            {" "}{t("rejectProofDesc2")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div>
             <label className="text-sm font-medium text-foreground">
-              Motivo del rechazo *
+              {t("rejectionReason")} *
             </label>
             <Textarea
-              placeholder="Ej: El comprobante está borroso, no se puede leer el código de transacción..."
+              placeholder={t("rejectionReasonPlaceholder")}
               value={reason}
               onChange={(e) => {
                 setReason(e.target.value);
@@ -92,7 +94,7 @@ export function RejectProofDialog({
               disabled={submitting}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              {reason.length}/500 caracteres
+              {reason.length}/500 {t("chars")}
             </p>
           </div>
 
@@ -110,7 +112,7 @@ export function RejectProofDialog({
             onClick={handleClose}
             disabled={submitting}
           >
-            Cancelar
+            {t("cancel")}
           </Button>
           <Button
             variant="destructive"
@@ -120,10 +122,10 @@ export function RejectProofDialog({
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                Rechazando...
+                {t("rejecting")}
               </>
             ) : (
-              "Confirmar Rechazo"
+              t("confirmReject")
             )}
           </Button>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Upload, X, FileText, Image, AlertCircle, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export function ProofUploadForm({
   onSuccess,
   onCancel,
 }: ProofUploadFormProps) {
+  const t = useTranslations("forms");
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -66,22 +68,21 @@ export function ProofUploadForm({
   const validateFile = useCallback((f: File): string | null => {
     const ext = "." + f.name.split(".").pop()?.toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      return `Formato no permitido: ${ext}. Solo JPG, PNG, WebP y PDF.`;
+      return t("invalidFormat", { ext });
     }
     if (!ALLOWED_MIME_TYPES.includes(f.type) && f.type !== "") {
-      // Allow empty type (browser may not detect), validate by extension
       if (!ALLOWED_EXTENSIONS.includes(ext)) {
-        return `Tipo de archivo no permitido: ${f.type || "desconocido"}.`;
+        return t("fileTypeNotAllowed", { type: f.type || t("unknown") });
       }
     }
     if (f.size > MAX_FILE_SIZE) {
-      return `El archivo excede el límite de ${formatSize(MAX_FILE_SIZE)}.`;
+      return t("fileSizeExceeded", { maxSize: formatSize(MAX_FILE_SIZE) });
     }
     if (f.size === 0) {
-      return "El archivo está vacío.";
+      return t("fileEmpty");
     }
     return null;
-  }, []);
+  }, [t]);
 
   // ── Handlers ──────────────────────────────────────────────────────────
 
@@ -147,7 +148,7 @@ export function ProofUploadForm({
       <CardContent className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">Subir Comprobante de Pago</h3>
+          <h3 className="font-semibold text-foreground">{t("uploadPaymentProof")}</h3>
           <Button variant="ghost" size="sm" onClick={onCancel} disabled={uploading}>
             <X className="h-4 w-4" />
           </Button>
@@ -157,12 +158,12 @@ export function ProofUploadForm({
         {arReference && (
           <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
             <p>
-              <span className="text-muted-foreground">Concepto:</span>{" "}
+              <span className="text-muted-foreground">{t("concept")}:</span>{" "}
               <span className="font-medium">{arReference}</span>
             </p>
             {arAmount != null && (
               <p>
-                <span className="text-muted-foreground">Monto pendiente:</span>{" "}
+                <span className="text-muted-foreground">{t("pendingAmount")}:</span>{" "}
                 <span className="font-semibold">
                   S/ {arAmount.toFixed(2)}
                 </span>
@@ -170,7 +171,7 @@ export function ProofUploadForm({
             )}
             {unitCode && (
               <p>
-                <span className="text-muted-foreground">Unidad:</span>{" "}
+                <span className="text-muted-foreground">{t("unit")}:</span>{" "}
                 <span className="font-medium">{unitCode}</span>
               </p>
             )}
@@ -197,14 +198,14 @@ export function ProofUploadForm({
             />
             <div className="text-center">
               <p className="text-sm font-medium text-foreground">
-                Arrastra tu archivo aquí
+                {t("dragFileHere")}
               </p>
               <p className="text-xs text-muted-foreground">
-                o haz clic para seleccionar
+                {t("clickToSelect")}
               </p>
             </div>
             <p className="text-xs text-muted-foreground/60">
-              Formatos: JPG, PNG, WebP, PDF · Máx {formatSize(MAX_FILE_SIZE)}
+              {t("fileFormats")}: JPG, PNG, WebP, PDF · {t("maxSize")} {formatSize(MAX_FILE_SIZE)}
             </p>
             <input
               ref={fileInputRef}
@@ -224,7 +225,7 @@ export function ProofUploadForm({
                   {file.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {file.type || "Desconocido"} · {formatSize(file.size)}
+                  {file.type || t("unknown")} · {formatSize(file.size)}
                 </p>
               </div>
               <Button
@@ -250,7 +251,7 @@ export function ProofUploadForm({
         {/* Actions */}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onCancel} disabled={uploading}>
-            Cancelar
+            {t("cancel")}
           </Button>
           <Button
             onClick={handleUpload}
@@ -259,10 +260,10 @@ export function ProofUploadForm({
             {uploading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                Subiendo...
+                {t("uploading")}
               </>
             ) : (
-              "Subir Comprobante"
+              t("uploadProof")
             )}
           </Button>
         </div>

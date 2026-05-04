@@ -2,6 +2,7 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Users,
   Home,
@@ -16,32 +17,33 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LangSwitcher } from "@/components/i18n/lang-switcher";
 
 export interface TabConfig {
   id: string;
-  label: string;
+  key: string;
   icon: LucideIcon;
   path: string;
 }
 
 // ── Default admin tabs ──────────────────────────────────────────────────
 
-const ADMIN_TABS: TabConfig[] = [
-  { id: "dashboard", label: "Inicio",   icon: LayoutDashboard, path: "/dashboard" },
-  { id: "residents",  label: "Residentes", icon: Users,        path: "/dashboard/residents" },
-  { id: "units",      label: "Unidades",   icon: Home,         path: "/dashboard/units" },
-  { id: "payments",   label: "Pagos",      icon: CreditCard,   path: "/dashboard/payments" },
-  { id: "receipts",   label: "Comprob.",   icon: Receipt,      path: "/dashboard/payment-proofs" },
-  { id: "towers",     label: "Torres",     icon: Building2,    path: "/dashboard/towers" },
+const ADMIN_TABS: Omit<TabConfig, "key">[] = [
+  { id: "dashboard", icon: LayoutDashboard, path: "/dashboard" },
+  { id: "residents",  icon: Users,        path: "/dashboard/residents" },
+  { id: "units",      icon: Home,         path: "/dashboard/units" },
+  { id: "payments",   icon: CreditCard,   path: "/dashboard/payments" },
+  { id: "receipts",   icon: Receipt,      path: "/dashboard/payment-proofs" },
+  { id: "towers",     icon: Building2,    path: "/dashboard/towers" },
 ];
 
-const RESIDENT_TABS: TabConfig[] = [
-  { id: "dashboard", label: "Inicio",    icon: LayoutDashboard, path: "/dashboard" },
-  { id: "payments",  label: "Pagos",     icon: CreditCard,      path: "/dashboard/payments" },
-  { id: "proofs",    label: "Comprob.",  icon: Receipt,          path: "/dashboard/payment-proofs" },
-  { id: "amenities", label: "Áreas",     icon: CalendarRange,   path: "/dashboard/amenities" },
-  { id: "receipts",  label: "Recibos",   icon: Receipt,         path: "/dashboard/receipts" },
-  { id: "profile",   label: "Perfil",    icon: User,            path: "/dashboard/profile" },
+const RESIDENT_TABS: Omit<TabConfig, "key">[] = [
+  { id: "dashboard", icon: LayoutDashboard, path: "/dashboard" },
+  { id: "payments",  icon: CreditCard,      path: "/dashboard/payments" },
+  { id: "proofs",    icon: Receipt,          path: "/dashboard/payment-proofs" },
+  { id: "amenities", icon: CalendarRange,   path: "/dashboard/amenities" },
+  { id: "receipts",  icon: Receipt,         path: "/dashboard/receipts" },
+  { id: "profile",   icon: User,            path: "/dashboard/profile" },
 ];
 
 // ── Component ───────────────────────────────────────────────────────────
@@ -55,18 +57,27 @@ export function MobileShell({
   tabs?: TabConfig[];
   role?: "admin" | "resident";
 }) {
+  const t = useTranslations("nav");
   const pathname = usePathname();
   const router = useRouter();
 
-  const activeTabs = tabs ?? (role === "resident" ? RESIDENT_TABS : ADMIN_TABS);
+  const baseTabs = tabs ?? (role === "resident" ? RESIDENT_TABS : ADMIN_TABS);
+  const activeTabs: TabConfig[] = baseTabs.map((tab) => ({
+    ...tab,
+    key: tab.id,
+  }));
 
-  // Determine active tab: match the tab whose path is a prefix of current pathname,
-  // preferring the most specific match
+  // Determine active tab: match the tab whose path is a prefix of current pathname
   const activeId =
-    activeTabs.findLast((t) => pathname.startsWith(t.path))?.id ?? "dashboard";
+    activeTabs.findLast((tab) => pathname.startsWith(tab.path))?.id ?? "dashboard";
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {/* Top bar with LangSwitcher */}
+      <div className="sticky top-0 z-40 flex items-center justify-end px-4 py-2 bg-background/95 backdrop-blur border-b">
+        <LangSwitcher />
+      </div>
+
       {/* Main content area */}
       <main className="flex-1 pb-16">{children}</main>
 
@@ -74,7 +85,7 @@ export function MobileShell({
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 safe-area-bottom"
         role="navigation"
-        aria-label="Navegación principal"
+        aria-label={t("dashboard")}
       >
         <div className="mx-auto flex h-16 max-w-lg items-center justify-around px-2">
           {activeTabs.map((tab) => {
@@ -101,7 +112,7 @@ export function MobileShell({
                   <tab.icon className="h-5 w-5" />
                 </div>
                 <span className="text-[10px] font-medium leading-tight">
-                  {tab.label}
+                  {t(tab.id)}
                 </span>
               </button>
             );
