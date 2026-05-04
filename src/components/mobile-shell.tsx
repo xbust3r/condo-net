@@ -27,16 +27,18 @@ export interface TabConfig {
 // ── Default admin tabs ──────────────────────────────────────────────────
 
 const ADMIN_TABS: TabConfig[] = [
-  { id: "dashboard", label: "Inicio",  icon: LayoutDashboard, path: "/dashboard" },
-  { id: "residents",  label: "Residentes", icon: Users,         path: "/dashboard/residents" },
-  { id: "units",      label: "Unidades",   icon: Home,           path: "/dashboard/units" },
-  { id: "payments",   label: "Pagos",      icon: CreditCard,     path: "/dashboard/payments" },
-  { id: "towers",     label: "Torres",     icon: Building2,      path: "/dashboard/towers" },
+  { id: "dashboard", label: "Inicio",   icon: LayoutDashboard, path: "/dashboard" },
+  { id: "residents",  label: "Residentes", icon: Users,        path: "/dashboard/residents" },
+  { id: "units",      label: "Unidades",   icon: Home,         path: "/dashboard/units" },
+  { id: "payments",   label: "Pagos",      icon: CreditCard,   path: "/dashboard/payments" },
+  { id: "receipts",   label: "Comprob.",   icon: Receipt,      path: "/dashboard/payment-proofs" },
+  { id: "towers",     label: "Torres",     icon: Building2,    path: "/dashboard/towers" },
 ];
 
 const RESIDENT_TABS: TabConfig[] = [
   { id: "dashboard", label: "Inicio",    icon: LayoutDashboard, path: "/dashboard" },
   { id: "payments",  label: "Pagos",     icon: CreditCard,      path: "/dashboard/payments" },
+  { id: "proofs",    label: "Comprob.",  icon: Receipt,          path: "/dashboard/payment-proofs" },
   { id: "amenities", label: "Áreas",     icon: CalendarRange,   path: "/dashboard/amenities" },
   { id: "receipts",  label: "Recibos",   icon: Receipt,         path: "/dashboard/receipts" },
   { id: "profile",   label: "Perfil",    icon: User,            path: "/dashboard/profile" },

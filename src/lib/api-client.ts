@@ -131,6 +131,57 @@ class ApiClient {
   delete<T = unknown>(path: string) {
     return this.fetch<T>(path, { method: "DELETE" });
   }
+
+  /**
+   * Upload a file via multipart/form-data.
+   * Automatically attaches Authorization header and handles 401 refresh.
+   */
+  async upload<T = unknown>(
+    path: string,
+    formData: FormData
+  ): Promise<{ data: T | null; error: ApiError | null }> {
+    const tokens = this.getTokens();
+    const headers: Record<string, string> = {};
+    // Do NOT set Content-Type — browser sets it with boundary for multipart
+
+    if (tokens?.access) {
+      headers["Authorization"] = `Bearer ${tokens.access}`;
+    }
+
+    let res = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    // Auto-refresh on 401
+    if (res.status === 401 && tokens?.refresh) {
+      const refreshed = await this.refreshAccessToken();
+      if (refreshed) {
+        const newTokens = this.getTokens();
+        headers["Authorization"] = `Bearer ${newTokens!.access}`;
+        res = await fetch(`${API_URL}${path}`, {
+          method: "POST",
+          headers,
+          body: formData,
+        });
+      }
+    }
+
+    if (!res.ok) {
+      let message = "Error al subir archivo";
+      try {
+        const body = await res.json();
+        message = body.detail || body.message || body.error || message;
+      } catch {
+        // no JSON body
+      }
+      return { data: null, error: { status: res.status, message } };
+    }
+
+    const data = (await res.json()) as T;
+    return { data, error: null };
+  }
 }
 
 export const api = new ApiClient();

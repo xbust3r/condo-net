@@ -18,13 +18,13 @@ import {
 
 function getUserRoleLabel(
   condoId: number,
-  rolesByCondo?: Record<number, Array<{ id: number; role: string }>>
+  rolesByCondo?: Record<number, Array<{ id: number; role?: string; name?: string }>>
 ): { label: string; variant: "default" | "secondary" | "outline" } | null {
   if (!rolesByCondo) return null;
   const roles = rolesByCondo[condoId];
   if (!roles || roles.length === 0) return null;
 
-  const roleNames = roles.map((r) => r.role.toLowerCase());
+  const roleNames = roles.map((r) => (r.role ?? r.name ?? "").toLowerCase());
 
   if (roleNames.some((n) => n.includes("propietario") || n.includes("owner"))) {
     return { label: "Propietario", variant: "default" };
@@ -36,8 +36,9 @@ function getUserRoleLabel(
     return { label: "Residente", variant: "outline" };
   }
 
+  const fallbackRole = roles[0].role ?? roles[0].name ?? "";
   return {
-    label: roles[0].role.charAt(0).toUpperCase() + roles[0].role.slice(1),
+    label: fallbackRole.charAt(0).toUpperCase() + fallbackRole.slice(1),
     variant: "outline",
   };
 }
@@ -57,7 +58,7 @@ export default function SelectCondoPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (selectedCondominium && !isLoading) {
+    if (selectedCondominium?.id && !isLoading) {
       router.replace("/dashboard");
     }
   }, [selectedCondominium, isLoading, router]);

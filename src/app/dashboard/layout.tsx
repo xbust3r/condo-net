@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Loader2, LogOut, Building2, ArrowLeft } from "lucide-react";
 
 function resolveRole(
-  rolesByCondo?: Record<number, Array<{ id: number; role: string }>>,
+  rolesByCondo?: Record<number, Array<{ id: number; role?: string; name?: string }>>,
   condoId?: number | null
 ): "admin" | "resident" {
   if (!rolesByCondo || !condoId) return "resident";
   const roles = rolesByCondo[condoId];
   if (!roles || roles.length === 0) return "resident";
-  const names = roles.map((r) => r.role.toLowerCase());
+  const names = roles.map((r) => (r.role ?? r.name ?? "").toLowerCase());
   if (names.some((n) => n.includes("admin") || n.includes("super"))) {
     return "admin";
   }
@@ -31,12 +31,12 @@ export default function DashboardLayout({
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading && !selectedCondominium) {
+    if (!isLoading && !selectedCondominium?.id) {
       router.replace("/select-condo");
     }
   }, [selectedCondominium, isLoading, router]);
 
-  if (isLoading || !selectedCondominium) {
+  if (isLoading || !selectedCondominium?.id) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

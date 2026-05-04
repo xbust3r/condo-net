@@ -42,7 +42,7 @@ export interface UserContext {
     last_name?: string;
     avatar_url?: string;
   } | null;
-  roles_by_condominium?: Record<number, Array<{ id: number; role: string; condominium_theme_id?: string | null }>>;
+  roles_by_condominium?: Record<number, Array<{ id: number; role?: string; name?: string; condominium_id?: number; condominium_name?: string | null; condominium_theme_id?: string | null }>>;
   condominiums: Condominium[];
   ownerships?: Ownership[];
 }
@@ -79,11 +79,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (savedCondo) {
         try {
           const parsed = JSON.parse(savedCondo);
-          setSelectedCondominium(parsed);
-          // Restore theme from persisted condominium
-          restoreTheme(parsed.theme_id);
+          // Validate shape: must be an object with an id property
+          if (
+            parsed &&
+            typeof parsed === "object" &&
+            !Array.isArray(parsed) &&
+            typeof parsed.id === "number" &&
+            parsed.id > 0
+          ) {
+            setSelectedCondominium(parsed);
+            // Restore theme from persisted condominium
+            restoreTheme(parsed.theme_id);
+          } else {
+            // Corrupt entry (e.g. raw number string "1") — purge it
+            localStorage.removeItem("selected_condominium");
+          }
         } catch {
-          // invalid JSON, ignore
+          // invalid JSON, purge
+          localStorage.removeItem("selected_condominium");
         }
       }
       // Fetch current user context

@@ -95,7 +95,7 @@ export default function DashboardPage() {
   // ── Single fetch to residents/dashboard ───────────────────────────────
 
   useEffect(() => {
-    if (!selectedCondominium) return;
+    if (!selectedCondominium?.id) return;
 
     let cancelled = false;
 
