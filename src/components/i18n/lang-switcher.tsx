@@ -9,6 +9,7 @@ import { Languages } from "lucide-react";
 const localeLabels: Record<string, string> = {
   es: "🇪🇸 Español",
   en: "🇺🇸 English",
+  pt: "🇧🇷 Português",
 };
 
 export function LangSwitcher() {
