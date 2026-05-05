@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -43,7 +43,6 @@ import {
   Pencil,
   Trash2,
   Building2,
-  CalendarRange,
 } from "lucide-react";
 
 interface Amenity {
@@ -71,6 +70,8 @@ interface Building {
 }
 
 export default function AmenitiesPage() {
+  const t = useTranslations("amenities");
+  const tc = useTranslations("common");
   const { selectedCondominium, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -82,7 +83,6 @@ export default function AmenitiesPage() {
   const [editing, setEditing] = useState<Amenity | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Form state
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -113,12 +113,10 @@ export default function AmenitiesPage() {
     const { data, error: apiErr } = await api.get<{
       success: boolean;
       data: { items: Amenity[]; total: number };
-    }>(
-      `/amenities?condominium_id=${selectedCondominium!.id}&limit=200`
-    );
+    }>(`/amenities?condominium_id=${selectedCondominium!.id}&limit=200`);
 
     if (apiErr) {
-      setError(apiErr.message || "Error al cargar amenidades");
+      setError(apiErr.message || t("errorLoading"));
     } else if (data?.data?.items) {
       setAmenities(data.data.items);
     }
@@ -194,10 +192,7 @@ export default function AmenitiesPage() {
     };
 
     if (editing) {
-      const { error: apiErr } = await api.put(
-        `/amenities/${editing.id}`,
-        payload
-      );
+      const { error: apiErr } = await api.put(`/amenities/${editing.id}`, payload);
       if (apiErr) {
         setError(apiErr.message);
         setSaving(false);
@@ -219,7 +214,7 @@ export default function AmenitiesPage() {
   }
 
   async function handleDelete(amenity: Amenity) {
-    if (!confirm(`¿Eliminar "${amenity.name}"?`)) return;
+    if (!confirm(t("deleteConfirm", { name: amenity.name }))) return;
     const { error: apiErr } = await api.delete(`/amenities/${amenity.id}`);
     if (apiErr) {
       setError(apiErr.message);
@@ -237,7 +232,7 @@ export default function AmenitiesPage() {
   }
 
   const scopeLabel = (scope: string) =>
-    scope === "CONDOMINIUM" ? "Todo el condominio" : "Por edificio";
+    scope === "CONDOMINIUM" ? t("condominium") : t("byBuilding");
   const statusVariant = (s: string) => (s === "active" ? "default" : "secondary");
 
   return (
@@ -249,15 +244,15 @@ export default function AmenitiesPage() {
             <Building2 className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Áreas Comunes</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t("title")}</h2>
             <p className="text-xs text-muted-foreground">
-              {amenities.length} registradas
+              {t("count", { count: amenities.length })}
             </p>
           </div>
         </div>
         <Button size="sm" onClick={openCreate}>
           <Plus className="mr-1 h-4 w-4" />
-          Nueva
+          {t("new")}
         </Button>
       </div>
 
@@ -267,17 +262,14 @@ export default function AmenitiesPage() {
         </div>
       )}
 
-      {/* Amenities list */}
       {amenities.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center gap-3 py-12">
             <Building2 className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">
-              No hay áreas comunes registradas.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("noAmenities")}</p>
             <Button variant="outline" size="sm" onClick={openCreate}>
               <Plus className="mr-1 h-4 w-4" />
-              Crear primera área común
+              {t("createFirst")}
             </Button>
           </CardContent>
         </Card>
@@ -289,11 +281,9 @@ export default function AmenitiesPage() {
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-foreground truncate">
-                        {a.name}
-                      </h3>
+                      <h3 className="font-semibold text-foreground truncate">{a.name}</h3>
                       <Badge variant={statusVariant(a.status)} className="text-[10px]">
-                        {a.status === "active" ? "Activo" : "Inactivo"}
+                        {a.status === "active" ? t("active") : t("inactive")}
                       </Badge>
                     </div>
 
@@ -304,55 +294,37 @@ export default function AmenitiesPage() {
                         </span>
                       )}
                       <span className="flex items-center gap-1">
-                        <Users className="h-3 w-3" /> Cap: {a.max_capacity || "—"}
+                        <Users className="h-3 w-3" /> {t("capacity")}: {a.max_capacity || "—"}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" /> {a.booking_duration_min || 0} min
                       </span>
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] font-normal"
-                      >
+                      <Badge variant="outline" className="text-[10px] font-normal">
                         {scopeLabel(a.scope)}
                       </Badge>
                     </div>
                   </div>
 
                   <div className="flex gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => openEdit(a)}
-                    >
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(a)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-destructive"
-                      onClick={() => handleDelete(a)}
-                    >
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => handleDelete(a)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
 
-                {/* Pricing row */}
                 <div className="flex items-center gap-4 text-sm">
                   <span className="flex items-center gap-1 text-chart-3">
                     <DollarSign className="h-3.5 w-3.5" />
-                    <span className="font-medium">
-                      S/ {Number(a.booking_price).toFixed(2)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">/ reserva</span>
+                    <span className="font-medium">S/ {Number(a.booking_price).toFixed(2)}</span>
+                    <span className="text-xs text-muted-foreground">{t("perBooking")}</span>
                   </span>
                   <span className="flex items-center gap-1 text-chart-4">
                     <Shield className="h-3.5 w-3.5" />
-                    <span className="font-medium">
-                      S/ {Number(a.security_deposit_amount).toFixed(2)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">garantía</span>
+                    <span className="font-medium">S/ {Number(a.security_deposit_amount).toFixed(2)}</span>
+                    <span className="text-xs text-muted-foreground">{t("deposit")}</span>
                   </span>
                 </div>
               </CardContent>
@@ -365,19 +337,15 @@ export default function AmenitiesPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editing ? "Editar área común" : "Nueva área común"}
-            </DialogTitle>
+            <DialogTitle>{editing ? t("editAmenity") : t("newAmenity")}</DialogTitle>
             <DialogDescription>
-              {editing
-                ? "Modifica los campos del área común"
-                : "Registra una nueva área común o amenidad"}
+              {editing ? t("editDescription") : t("createDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="name">Nombre *</Label>
+              <Label htmlFor="name">{t("name")} *</Label>
               <Input
                 id="name"
                 value={form.name}
@@ -387,7 +355,7 @@ export default function AmenitiesPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="location">Ubicación</Label>
+              <Label htmlFor="location">{t("location")}</Label>
               <Input
                 id="location"
                 value={form.location}
@@ -397,75 +365,62 @@ export default function AmenitiesPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="desc">Descripción</Label>
+              <Label htmlFor="desc">{t("description")}</Label>
               <Textarea
                 id="desc"
                 value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-                placeholder="Descripción del área común..."
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder={t("description") + "…"}
                 rows={2}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <Label>Capacidad</Label>
+                <Label>{t("capacityField")}</Label>
                 <Input
                   type="number"
                   min={1}
                   value={form.max_capacity}
-                  onChange={(e) =>
-                    setForm({ ...form, max_capacity: Number(e.target.value) || 1 })
-                  }
+                  onChange={(e) => setForm({ ...form, max_capacity: Number(e.target.value) || 1 })}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>Duración (min)</Label>
+                <Label>{t("durationMin")}</Label>
                 <Input
                   type="number"
                   min={0}
                   value={form.booking_duration_min}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      booking_duration_min: Number(e.target.value) || 0,
-                    })
-                  }
+                  onChange={(e) => setForm({ ...form, booking_duration_min: Number(e.target.value) || 0 })}
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label>Alcance</Label>
+              <Label>{t("scope")}</Label>
               <Select
                 value={form.scope}
-                onValueChange={(v) =>
-                  setForm({ ...form, scope: v ?? "CONDOMINIUM", building_id: v === "BUILDING" ? form.building_id : 0 })
-                }
+                onValueChange={(v) => setForm({ ...form, scope: v ?? "CONDOMINIUM", building_id: v === "BUILDING" ? form.building_id : 0 })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CONDOMINIUM">Todo el condominio</SelectItem>
-                  <SelectItem value="BUILDING">Por edificio</SelectItem>
+                  <SelectItem value="CONDOMINIUM">{t("condominium")}</SelectItem>
+                  <SelectItem value="BUILDING">{t("byBuilding")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {form.scope === "BUILDING" && (
               <div className="flex flex-col gap-1.5">
-                <Label>Edificio</Label>
+                <Label>{t("building")}</Label>
                 <Select
                   value={form.building_id ? String(form.building_id) : ""}
-                  onValueChange={(v) =>
-                    setForm({ ...form, building_id: Number(v) })
-                  }
+                  onValueChange={(v) => setForm({ ...form, building_id: Number(v) })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar edificio" />
+                    <SelectValue placeholder={t("selectBuilding")} />
                   </SelectTrigger>
                   <SelectContent>
                     {buildings.map((b) => (
@@ -479,38 +434,26 @@ export default function AmenitiesPage() {
             )}
 
             <div className="border-t pt-3">
-              <p className="text-sm font-semibold text-foreground mb-3">
-                Precio y Garantía
-              </p>
+              <p className="text-sm font-semibold text-foreground mb-3">{t("priceAndDeposit")}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <Label>Precio de reserva (S/)</Label>
+                  <Label>{t("bookingPrice")}</Label>
                   <Input
                     type="number"
                     min={0}
                     step="0.01"
                     value={form.booking_price}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        booking_price: Number(e.target.value) || 0,
-                      })
-                    }
+                    onChange={(e) => setForm({ ...form, booking_price: Number(e.target.value) || 0 })}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label>Garantía (S/)</Label>
+                  <Label>{t("depositAmount")}</Label>
                   <Input
                     type="number"
                     min={0}
                     step="0.01"
                     value={form.security_deposit_amount}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        security_deposit_amount: Number(e.target.value) || 0,
-                      })
-                    }
+                    onChange={(e) => setForm({ ...form, security_deposit_amount: Number(e.target.value) || 0 })}
                   />
                 </div>
               </div>
@@ -521,40 +464,30 @@ export default function AmenitiesPage() {
                 type="checkbox"
                 id="requires_approval"
                 checked={form.requires_approval}
-                onChange={(e) =>
-                  setForm({ ...form, requires_approval: e.target.checked })
-                }
+                onChange={(e) => setForm({ ...form, requires_approval: e.target.checked })}
                 className="h-4 w-4"
               />
-              <Label htmlFor="requires_approval">Requiere aprobación</Label>
+              <Label htmlFor="requires_approval">{t("requiresApproval")}</Label>
             </div>
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
                 id="is_reservable"
                 checked={form.is_reservable}
-                onChange={(e) =>
-                  setForm({ ...form, is_reservable: e.target.checked })
-                }
+                onChange={(e) => setForm({ ...form, is_reservable: e.target.checked })}
                 className="h-4 w-4"
               />
-              <Label htmlFor="is_reservable">Reservable</Label>
+              <Label htmlFor="is_reservable">{t("reservable")}</Label>
             </div>
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-              disabled={saving}
-            >
-              Cancelar
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
+              {tc("cancel")}
             </Button>
             <Button onClick={handleSave} disabled={saving || !form.name.trim()}>
-              {saving ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-              ) : null}
-              {editing ? "Guardar cambios" : "Crear"}
+              {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+              {editing ? t("saveChanges") : t("create")}
             </Button>
           </DialogFooter>
         </DialogContent>

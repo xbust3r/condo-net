@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api-client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +22,7 @@ interface PaymentItem {
 }
 
 export default function PaymentsPage() {
+  const t = useTranslations("payments");
   const { selectedCondominium, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [payments, setPayments] = useState<PaymentItem[]>([]);
@@ -44,7 +46,7 @@ export default function PaymentsPage() {
       }>(`/payments?condominium_id=${selectedCondominium!.id}&limit=200`);
 
       if (apiError) {
-        setError(apiError.message || "Error al cargar pagos");
+        setError(apiError.message || t("errorLoading"));
       } else if (data?.data?.items) {
         setPayments(data.data.items);
       }
@@ -52,7 +54,7 @@ export default function PaymentsPage() {
     }
 
     fetchPayments();
-  }, [selectedCondominium, authLoading, router]);
+  }, [selectedCondominium, authLoading, router, t]);
 
   if (authLoading || loading) {
     return (
@@ -80,14 +82,13 @@ export default function PaymentsPage() {
 
   return (
     <div className="flex flex-col px-4 py-4">
-      {/* Section title */}
       <div className="flex items-center gap-2 mb-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-3/10 text-chart-3">
           <CreditCard className="h-4 w-4" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Pagos</h2>
-          <p className="text-xs text-muted-foreground">{payments.length} registrados</p>
+          <h2 className="text-lg font-semibold text-foreground">{t("title")}</h2>
+          <p className="text-xs text-muted-foreground">{t("registered", { count: payments.length })}</p>
         </div>
       </div>
 
@@ -102,7 +103,7 @@ export default function PaymentsPage() {
           <CardContent className="flex flex-col items-center gap-3 py-12">
             <Receipt className="h-12 w-12 text-muted-foreground/40" />
             <p className="text-center text-sm text-muted-foreground">
-              No se encontraron pagos registrados.
+              {t("noPaymentsFound")}
             </p>
           </CardContent>
         </Card>
@@ -120,8 +121,8 @@ export default function PaymentsPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {p.receipt_number
-                      ? `Recibo ${p.receipt_number}`
-                      : `Pago #${p.id}`}
+                      ? `${t("receipt")} ${p.receipt_number}`
+                      : `${t("paymentNumber")} #${p.id}`}
                     {p.unit_code ? ` · ${p.unit_code}` : ""}
                     {p.payment_date ? ` · ${formatDate(p.payment_date)}` : ""}
                   </p>

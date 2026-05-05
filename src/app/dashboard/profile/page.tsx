@@ -1,11 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Loader2, User, Mail, Building2 } from "lucide-react";
 
 export default function ProfilePage() {
+  const tp = useTranslations("profile");
+  const tn = useTranslations("nav");
   const { user, selectedCondominium, isLoading } = useAuth();
 
   if (isLoading || !user) {
@@ -23,7 +25,7 @@ export default function ProfilePage() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-5/10 text-chart-5">
           <User className="h-4 w-4" />
         </div>
-        <h2 className="text-lg font-semibold text-foreground">Mi Perfil</h2>
+        <h2 className="text-lg font-semibold text-foreground">{tn("profile")}</h2>
       </div>
 
       {/* Avatar + Name */}
@@ -44,7 +46,7 @@ export default function ProfilePage() {
             <h3 className="text-lg font-semibold text-foreground">
               {user.profile?.first_name
                 ? `${user.profile.first_name} ${user.profile.last_name || ""}`
-                : user.name || "Usuario"}
+                : user.name || tp("user")}
             </h3>
           </div>
         </CardContent>
@@ -56,7 +58,7 @@ export default function ProfilePage() {
           <div className="flex items-center gap-3">
             <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
-              <p className="text-[10px] text-muted-foreground/60 uppercase">Email</p>
+              <p className="text-[10px] text-muted-foreground/60 uppercase">{tp("email")}</p>
               <p className="text-sm text-foreground">{user.email}</p>
             </div>
           </div>
@@ -65,7 +67,7 @@ export default function ProfilePage() {
               <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
               <div>
                 <p className="text-[10px] text-muted-foreground/60 uppercase">
-                  Condominio actual
+                  {tp("currentCondo")}
                 </p>
                 <p className="text-sm text-foreground">
                   {selectedCondominium.name}
@@ -81,7 +83,7 @@ export default function ProfilePage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-[10px] text-muted-foreground/60 uppercase mb-2">
-              Roles
+              {tp("roles")}
             </p>
             <div className="flex flex-wrap gap-2">
               {(user.roles_by_condominium[selectedCondominium.id] || []).map(
