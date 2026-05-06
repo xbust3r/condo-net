@@ -8,7 +8,7 @@
  * - JSON parsing & error normalization
  */
 
-const API_URL = "/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api-proxy";
 
 export interface ApiError {
   status: number;
